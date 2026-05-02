@@ -1,121 +1,213 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="UTF-8">
-  <title>Panel de Turnos</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fila Virtual Paradero</title>
 
-  <style>
-    body{
-      font-family: Arial, Helvetica, sans-serif;
-      background:#0f172a;
-      color:white;
-      text-align:center;
-      padding:20px;
-    }
+<style>
+body{
+  margin:0;
+  font-family: Arial, Helvetica, sans-serif;
+  background:#0f172a;
+  color:white;
+}
 
-    h1{
-      margin-bottom:30px;
-    }
+/* HEADER */
+.header{
+  background:#020617;
+  padding:15px;
+  text-align:center;
+  font-size:22px;
+  font-weight:bold;
+}
 
-    .card{
-      background:#1e293b;
-      padding:20px;
-      border-radius:15px;
-      margin:20px auto;
-      max-width:400px;
-      box-shadow:0 0 15px rgba(0,0,0,0.4);
-    }
+/* CONTENEDOR */
+.container{
+  padding:15px;
+  max-width:900px;
+  margin:auto;
+}
 
-    .titulo{
-      font-size:22px;
-      margin-bottom:10px;
-      color:#38bdf8;
-    }
+/* TARJETAS */
+.card{
+  border-radius:16px;
+  padding:15px;
+  margin-bottom:15px;
+}
 
-    .dato{
-      font-size:28px;
-      font-weight:bold;
-      line-height:1.6;
-    }
+/* COLORES */
+.turno{ background:#065f46; }
+.espera{ background:#78350f; }
+.salida{ background:#7f1d1d; }
 
-    button{
-      margin-top:30px;
-      padding:15px 25px;
-      border:none;
-      border-radius:10px;
-      background:#22c55e;
-      color:white;
-      font-size:18px;
-      cursor:pointer;
-    }
+/* TITULOS */
+.titulo{
+  font-size:18px;
+  margin-bottom:10px;
+  font-weight:bold;
+}
 
-    button:hover{
-      background:#16a34a;
-    }
-  </style>
+/* ITEMS */
+.item{
+  padding:8px 0;
+  border-bottom:1px solid rgba(255,255,255,0.1);
+  font-size:18px;
+}
+
+.pos{
+  font-weight:bold;
+  margin-right:10px;
+}
+
+.movil{
+  font-weight:bold;
+}
+
+.tiempo{
+  float:right;
+  opacity:0.8;
+}
+
+/* BOTON */
+.btn{
+  width:100%;
+  padding:12px;
+  font-size:18px;
+  border:none;
+  border-radius:10px;
+  margin-top:10px;
+  cursor:pointer;
+  background:#2563eb;
+  color:white;
+}
+</style>
 </head>
 
 <body>
 
-<h1>🚐 Panel de Turnos</h1>
+<div class="header">🚐 FILA VIRTUAL PARADERO</div>
 
-<div class="card">
-  <div class="titulo">En Turno</div>
-  <div id="turno" class="dato">Cargando...</div>
+<div class="container">
+
+  <!-- SU TURNO -->
+  <div class="card turno">
+    <div class="titulo">🟢 SU TURNO</div>
+    <div id="turno"></div>
+  </div>
+
+  <!-- EN ESPERA -->
+  <div class="card espera">
+    <div class="titulo">🟡 EN ESPERA</div>
+    <div id="espera"></div>
+  </div>
+
+  <!-- ULTIMA SALIDA -->
+  <div class="card salida">
+    <div class="titulo">🔴 ÚLTIMA SALIDA</div>
+    <div id="salida"></div>
+  </div>
+
+  <button class="btn" onclick="cargarDatos()">Actualizar</button>
+
 </div>
-
-<div class="card">
-  <div class="titulo">Última Salida</div>
-  <div id="ultima" class="dato">Cargando...</div>
-</div>
-
-<button onclick="cargarDatos()">Actualizar</button>
 
 <script>
-const CSV_BASE = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSXJbNz31wMpneH5Xohkd8YTyeA57HhYkAOa05PgLOcUkWK3JwHyss9EJR1vYk4z4YftRl_J_zdVU8R/pub?gid=1499579513&single=true&output=csv";
+const CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSXJbNz31wMpneH5Xohkd8YTyeA57HhYkAOa05PgLOcUkWK3JwHyss9EJR1vYk4z4YftRl_J_zdVU8R/pub?gid=1499579513&single=true&output=csv";
 
-async function cargarDatos() {
-  try {
-    // 🔥 Evita cache → siempre trae datos nuevos
-    const url = CSV_BASE + "&t=" + new Date().getTime();
+// FORMATO TIEMPO
+function tiempoEspera(fecha){
+  const ahora = new Date();
+  const inicio = new Date(fecha);
+  const diff = Math.floor((ahora - inicio) / 60000);
 
-    const response = await fetch(url, { cache: "no-store" });
-    const data = await response.text();
+  if(diff < 60) return diff + " min";
 
-    procesarCSV(data);
-
-  } catch (error) {
-    console.error("Error:", error);
-  }
+  const h = Math.floor(diff/60);
+  const m = diff % 60;
+  return h + "h " + (m<10?"0":"") + m + " min";
 }
 
-function procesarCSV(csv) {
-  const filas = csv.trim().split("\n").slice(1); // quitar encabezados
+// CARGAR DATOS
+async function cargarDatos(){
 
-  if (filas.length === 0) {
-    document.getElementById("turno").innerHTML = "Sin registros";
-    document.getElementById("ultima").innerHTML = "Sin registros";
-    return;
+  const res = await fetch(CSV + "&t=" + new Date().getTime(), {cache:"no-store"});
+  const text = await res.text();
+
+  const filas = text.trim().split("\n").slice(1);
+
+  let estadoMoviles = {};
+
+  filas.forEach(f => {
+    const c = f.split(",");
+    const hora = c[0];
+    const movil = c[1];
+    const accion = c[2].trim();
+
+    estadoMoviles[movil] = {
+      hora,
+      accion
+    };
+  });
+
+  let fila = [];
+  let salidas = [];
+
+  for(let movil in estadoMoviles){
+
+    const data = estadoMoviles[movil];
+
+    if(data.accion === "Ingreso"){
+      fila.push({movil, hora:data.hora});
+    }
+
+    if(data.accion === "Salida"){
+      salidas.push({movil, hora:data.hora});
+    }
   }
 
-  // Convertir filas a array
-  const registros = filas.map(fila => fila.split(","));
+  // ORDENAR FILA (más antiguo primero)
+  fila.sort((a,b)=> new Date(a.hora) - new Date(b.hora));
 
-  // 🚐 PRIMEROS 2 = EN TURNO
-  const turno = registros.slice(0, 2);
+  // ORDENAR SALIDAS (más recientes primero)
+  salidas.sort((a,b)=> new Date(b.hora) - new Date(a.hora));
 
-  // 🚐 ÚLTIMOS 2 = ÚLTIMA SALIDA
-  const ultimaSalida = registros.slice(-2);
+  const turno = fila.slice(0,2);
+  const espera = fila.slice(2);
+  const ultimas = salidas.slice(0,2);
 
+  // MOSTRAR TURNOS
   document.getElementById("turno").innerHTML =
-    turno.map(r => r[1]).join("<br>");
+    turno.map(t =>
+      `<div class="item">
+        <span class="movil">Móvil ${t.movil}</span>
+        <span class="tiempo">${tiempoEspera(t.hora)}</span>
+      </div>`
+    ).join("") || "Sin vehículos";
 
-  document.getElementById("ultima").innerHTML =
-    ultimaSalida.map(r => r[1]).join("<br>");
+  // MOSTRAR ESPERA
+  document.getElementById("espera").innerHTML =
+    espera.map((e,i) =>
+      `<div class="item">
+        <span class="pos">N° ${i+3}</span>
+        <span class="movil">Móvil ${e.movil}</span>
+        <span class="tiempo">${tiempoEspera(e.hora)}</span>
+      </div>`
+    ).join("") || "Sin espera";
+
+  // MOSTRAR SALIDAS
+  document.getElementById("salida").innerHTML =
+    ultimas.map(s =>
+      `<div class="item">
+        <span class="movil">Móvil ${s.movil}</span>
+        <span class="tiempo">${new Date(s.hora).toLocaleTimeString()}</span>
+      </div>`
+    ).join("") || "Sin registros";
 }
 
-// Cargar automáticamente al abrir la página
+// AUTO ACTUALIZA
 cargarDatos();
+setInterval(cargarDatos,15000);
 </script>
 
 </body>
