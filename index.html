@@ -1,173 +1,121 @@
 <!DOCTYPE html>
 <html>
 <head>
-<meta charset="UTF-8">
-<title>Fila Virtual Paradero</title>
+  <meta charset="UTF-8">
+  <title>Panel de Turnos</title>
 
-<style>
-body{
-  margin:0;
-  font-family: Arial, Helvetica, sans-serif;
-  background:#f1f5f9;
-}
+  <style>
+    body{
+      font-family: Arial, Helvetica, sans-serif;
+      background:#0f172a;
+      color:white;
+      text-align:center;
+      padding:20px;
+    }
 
-.app-header{
-  background:#0f172a;
-  color:white;
-  padding:18px;
-  text-align:center;
-  font-size:22px;
-  font-weight:bold;
-}
+    h1{
+      margin-bottom:30px;
+    }
 
-.container{
-  padding:20px;
-  max-width:1000px;
-  margin:auto;
-}
+    .card{
+      background:#1e293b;
+      padding:20px;
+      border-radius:15px;
+      margin:20px auto;
+      max-width:400px;
+      box-shadow:0 0 15px rgba(0,0,0,0.4);
+    }
 
-.top-buttons{
-  display:flex;
-  gap:10px;
-  justify-content:center;
-  margin-bottom:20px;
-}
+    .titulo{
+      font-size:22px;
+      margin-bottom:10px;
+      color:#38bdf8;
+    }
 
-.btn{
-  background:#2563eb;
-  color:white;
-  border:none;
-  padding:12px 20px;
-  border-radius:10px;
-  font-size:16px;
-  cursor:pointer;
-}
+    .dato{
+      font-size:28px;
+      font-weight:bold;
+      line-height:1.6;
+    }
 
-.grid{
-  display:grid;
-  grid-template-columns:1fr;
-  gap:20px;
-}
+    button{
+      margin-top:30px;
+      padding:15px 25px;
+      border:none;
+      border-radius:10px;
+      background:#22c55e;
+      color:white;
+      font-size:18px;
+      cursor:pointer;
+    }
 
-.card{
-  background:white;
-  border-radius:18px;
-  padding:20px;
-  box-shadow:0 10px 30px rgba(0,0,0,0.1);
-}
-
-.turno{ border-left:8px solid #22c55e; }
-.espera{ border-left:8px solid #facc15; }
-.salida{ border-left:8px solid #64748b; }
-
-.movil{
-  font-size:22px;
-  padding:5px 0;
-}
-
-.small{
-  color:#64748b;
-  font-size:14px;
-}
-</style>
+    button:hover{
+      background:#16a34a;
+    }
+  </style>
 </head>
 
 <body>
 
-<div class="app-header">🚐 FILA VIRTUAL PARADERO</div>
+<h1>🚐 Panel de Turnos</h1>
 
-<div class="container">
-
-  <div class="top-buttons">
-    <button class="btn" onclick="checkLocation()">➕ Registrarse</button>
-    <button class="btn" onclick="cargarDatos()">🔄 Actualizar</button>
-  </div>
-
-  <div class="grid">
-
-    <div class="card turno">
-      <h2>🟢 EN TURNO</h2>
-      <div id="turno">Cargando...</div>
-    </div>
-
-    <div class="card espera">
-      <h2>🟡 EN ESPERA</h2>
-      <div id="espera">Cargando...</div>
-    </div>
-
-    <div class="card salida">
-      <h2>⚫ ÚLTIMA SALIDA</h2>
-      <div id="salida">Cargando...</div>
-    </div>
-
-  </div>
+<div class="card">
+  <div class="titulo">En Turno</div>
+  <div id="turno" class="dato">Cargando...</div>
 </div>
 
+<div class="card">
+  <div class="titulo">Última Salida</div>
+  <div id="ultima" class="dato">Cargando...</div>
+</div>
+
+<button onclick="cargarDatos()">Actualizar</button>
+
 <script>
-// 🔗 LINK CSV
-const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSXJbNz31wMpneH5Xohkd8YTyeA57HhYkAOa05PgLOcUkWK3JwHyss9EJR1vYk4z4YftRl_J_zdVU8R/pub?gid=1499579513&single=true&output=csv";
+const CSV_BASE = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSXJbNz31wMpneH5Xohkd8YTyeA57HhYkAOa05PgLOcUkWK3JwHyss9EJR1vYk4z4YftRl_J_zdVU8R/pub?gid=1499579513&single=true&output=csv";
 
-// 📥 Leer datos del Sheet
-async function cargarDatos(){
-  const response = await fetch(CSV_URL + "&t=" + new Date().getTime());
-  const data = await response.text();
+async function cargarDatos() {
+  try {
+    // 🔥 Evita cache → siempre trae datos nuevos
+    const url = CSV_BASE + "&t=" + new Date().getTime();
 
-  const filas = data.split("\n").slice(1);
-  let cola = [];
-  let ultimaSalida = "-";
+    const response = await fetch(url, { cache: "no-store" });
+    const data = await response.text();
 
-  filas.forEach(f => {
-    const c = f.split(",");
-    if(c.length < 3) return;
+    procesarCSV(data);
 
-    const hora = c[0];
-    const movil = c[1];
-    const tipo = c[2].trim();
+  } catch (error) {
+    console.error("Error:", error);
+  }
+}
 
-    if(tipo === "Ingreso") cola.push(movil);
-    if(tipo === "Salida"){
-      ultimaSalida = movil + " — " + hora;
-      cola.shift();
-    }
-  });
+function procesarCSV(csv) {
+  const filas = csv.trim().split("\n").slice(1); // quitar encabezados
+
+  if (filas.length === 0) {
+    document.getElementById("turno").innerHTML = "Sin registros";
+    document.getElementById("ultima").innerHTML = "Sin registros";
+    return;
+  }
+
+  // Convertir filas a array
+  const registros = filas.map(fila => fila.split(","));
+
+  // 🚐 PRIMEROS 2 = EN TURNO
+  const turno = registros.slice(0, 2);
+
+  // 🚐 ÚLTIMOS 2 = ÚLTIMA SALIDA
+  const ultimaSalida = registros.slice(-2);
 
   document.getElementById("turno").innerHTML =
-    cola[0] ? `<div class="movil">Movil ${cola[0]}</div>` : "Sin vehículos";
+    turno.map(r => r[1]).join("<br>");
 
-  document.getElementById("espera").innerHTML =
-    cola.slice(1).map(m => `<div class="movil">Movil ${m}</div>`).join("") || "Vacío";
-
-  document.getElementById("salida").innerHTML = ultimaSalida;
+  document.getElementById("ultima").innerHTML =
+    ultimaSalida.map(r => r[1]).join("<br>");
 }
 
+// Cargar automáticamente al abrir la página
 cargarDatos();
-setInterval(cargarDatos,30000);
-
-// 📍 GPS SOLO PARA REGISTRO
-const PARADERO_LAT = -33.83321726390133;
-const PARADERO_LON = -70.64226159521483;
-const RADIO_METROS = 200;
-
-function toRad(v){ return v*Math.PI/180; }
-
-function distanciaMetros(lat1,lon1,lat2,lon2){
-  const R=6371e3;
-  const dLat=toRad(lat2-lat1);
-  const dLon=toRad(lon2-lon1);
-  const a=Math.sin(dLat/2)**2+
-    Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)**2;
-  return R*(2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a)));
-}
-
-function checkLocation(){
-  navigator.geolocation.getCurrentPosition(pos=>{
-    const d=distanciaMetros(pos.coords.latitude,pos.coords.longitude,PARADERO_LAT,PARADERO_LON);
-    if(d<=RADIO_METROS)
-      window.open("https://docs.google.com/forms/d/e/1FAIpQLScqQdDzJeOOmrT069IlGXWBRbXrqXS5D8ow9VSRCjLL30T6dQ/viewform","_blank");
-    else
-      alert("❌ Debes estar en el paradero para registrarte");
-  },()=>alert("Debes permitir la ubicación"));
-}
 </script>
 
 </body>
