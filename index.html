@@ -3,20 +3,72 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Fila Virtual</title>
+<title>Fila Virtual Paradero</title>
 
 <style>
-body{margin:0;font-family:Arial;background:#0f172a;color:white;}
-.header{padding:15px;text-align:center;font-size:22px;background:#020617;}
-.container{padding:15px;max-width:900px;margin:auto;}
-.card{padding:15px;border-radius:15px;margin-bottom:15px;}
-.turno{background:#065f46;}
-.espera{background:#78350f;}
-.salida{background:#7f1d1d;}
-.item{padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.1);}
-.pos{font-weight:bold;margin-right:10px;}
-.movil{font-weight:bold;}
-.btn{width:100%;padding:12px;margin-top:10px;background:#2563eb;color:white;border:none;border-radius:10px;}
+body{
+  margin:0;
+  font-family: Arial, Helvetica, sans-serif;
+  background:#0f172a;
+  color:white;
+}
+
+.header{
+  background:#020617;
+  padding:15px;
+  text-align:center;
+  font-size:22px;
+  font-weight:bold;
+}
+
+.container{
+  padding:15px;
+  max-width:900px;
+  margin:auto;
+}
+
+.card{
+  border-radius:16px;
+  padding:15px;
+  margin-bottom:15px;
+}
+
+.turno{ background:#065f46; }
+.espera{ background:#78350f; }
+.salida{ background:#7f1d1d; }
+
+.titulo{
+  font-size:18px;
+  margin-bottom:10px;
+  font-weight:bold;
+}
+
+.item{
+  padding:8px 0;
+  border-bottom:1px solid rgba(255,255,255,0.1);
+  font-size:18px;
+}
+
+.pos{
+  font-weight:bold;
+  margin-right:10px;
+}
+
+.movil{
+  font-weight:bold;
+}
+
+.btn{
+  width:100%;
+  padding:12px;
+  font-size:18px;
+  border:none;
+  border-radius:10px;
+  margin-top:10px;
+  cursor:pointer;
+  background:#2563eb;
+  color:white;
+}
 </style>
 </head>
 
@@ -26,94 +78,75 @@ body{margin:0;font-family:Arial;background:#0f172a;color:white;}
 
 <div class="container">
 
-<div class="card turno">
-<div>🟢 SU TURNO</div>
-<div id="turno"></div>
-</div>
+  <!-- TURNO -->
+  <div class="card turno">
+    <div class="titulo">🟢 SU TURNO</div>
+    <div id="turno"></div>
+  </div>
 
-<div class="card espera">
-<div>🟡 EN ESPERA</div>
-<div id="espera"></div>
-</div>
+  <!-- ESPERA -->
+  <div class="card espera">
+    <div class="titulo">🟡 EN ESPERA</div>
+    <div id="espera"></div>
+  </div>
 
-<div class="card salida">
-<div>🔴 ÚLTIMA SALIDA</div>
-<div id="salida"></div>
-</div>
+  <!-- SALIDA -->
+  <div class="card salida">
+    <div class="titulo">🔴 ÚLTIMA SALIDA</div>
+    <div id="salida"></div>
+  </div>
 
-<button class="btn" onclick="cargarDatos()">Actualizar</button>
+  <button class="btn" onclick="cargarDatos()">Actualizar</button>
 
 </div>
 
 <script>
 
-const CSV="https://docs.google.com/spreadsheets/d/e/2PACX-1vSXJbNz31wMpneH5Xohkd8YTyeA57HhYkAOa05PgLOcUkWK3JwHyss9EJR1vYk4z4YftRl_J_zdVU8R/pub?gid=1499579513&single=true&output=csv";
-
-let ultimoEstado = null; // 🔒 evita retrocesos
+const API = "https://script.google.com/macros/s/AKfycbzyer2eFTuP2wokfDh7qjj7wRnAKqHShPFSe9BprzhPcl_3pgQFEm3ivTGziN_S6r5X/exec";
 
 async function cargarDatos(){
 
-  const res = await fetch(CSV + "&t=" + new Date().getTime(), {cache:"no-store"});
-  const text = await res.text();
+  try{
+    const res = await fetch(API);
+    const data = await res.json();
 
-  const filas = text.trim().split("\n").slice(1);
+    // TURNOS
+    document.getElementById("turno").innerHTML =
+      data.turno.length
+        ? data.turno.map(t =>
+          `<div class="item">Móvil ${t.movil}</div>`
+        ).join("")
+        : "Sin vehículos";
 
-  let registros = filas.map(f=>{
-    const c=f.split(",");
-    return {
-      fecha:new Date(c[0]),
-      movil:c[1],
-      accion:c[2].trim()
-    };
-  });
+    // ESPERA
+    document.getElementById("espera").innerHTML =
+      data.espera.length
+        ? data.espera.map((e,i) =>
+          `<div class="item">
+            <span class="pos">N° ${i+3}</span>
+            <span class="movil">Móvil ${e.movil}</span>
+          </div>`
+        ).join("")
+        : "Sin espera";
 
-  // 🔥 ORDENAMOS TODO POR FECHA (clave)
-  registros.sort((a,b)=>a.fecha-b.fecha);
+    // SALIDA
+    document.getElementById("salida").innerHTML =
+      data.salida.length
+        ? data.salida.map(s =>
+          `<div class="item">Móvil ${s.movil}</div>`
+        ).join("")
+        : "Sin registros";
 
-  let estado = {};
-  let salidas = [];
-
-  registros.forEach(r=>{
-    if(r.accion==="Ingreso"){
-      estado[r.movil]={estado:"fila",hora:r.fecha};
-    }
-    else if(r.accion==="Salida"){
-      estado[r.movil]={estado:"salio",hora:r.fecha};
-      salidas.push({movil:r.movil,hora:r.fecha});
-    }
-    else if(r.accion==="Abandonar"){
-      delete estado[r.movil];
-    }
-  });
-
-  // 🔒 evitar retrocesos
-  const estadoJSON = JSON.stringify({estado,salidas});
-  if(ultimoEstado && estadoJSON < ultimoEstado) return;
-  ultimoEstado = estadoJSON;
-
-  let fila = Object.entries(estado)
-    .filter(([_,v])=>v.estado==="fila")
-    .map(([movil,v])=>({movil, hora:v.hora}));
-
-  fila.sort((a,b)=>a.hora-b.hora);
-  salidas.sort((a,b)=>b.hora-a.hora);
-
-  const turno = fila.slice(0,2);
-  const espera = fila.slice(2);
-  const ultimas = salidas.slice(0,2);
-
-  document.getElementById("turno").innerHTML =
-    turno.map(t=>`<div class="item">Móvil ${t.movil}</div>`).join("") || "Sin vehículos";
-
-  document.getElementById("espera").innerHTML =
-    espera.map((e,i)=>`<div class="item"><span class="pos">N° ${i+3}</span>Móvil ${e.movil}</div>`).join("") || "Sin espera";
-
-  document.getElementById("salida").innerHTML =
-    ultimas.map(s=>`<div class="item">Móvil ${s.movil}</div>`).join("") || "Sin registros";
+  }catch(err){
+    console.error(err);
+  }
 }
 
+// carga inicial
 cargarDatos();
-setInterval(cargarDatos,15000);
+
+// actualización automática cada 10 segundos
+setInterval(cargarDatos,10000);
 
 </script>
 
