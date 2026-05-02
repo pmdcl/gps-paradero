@@ -1,85 +1,173 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <link rel="manifest" href="manifest.json">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<title>Fila Virtual Paradero</title>
+
+<link rel="manifest" href="manifest.json">
 
 <script>
 if ("serviceWorker" in navigator) {
   navigator.serviceWorker.register("service-worker.js");
 }
 </script>
-<meta charset="UTF-8">
-<title>Verificando ubicación...</title>
 
 <style>
-body{
-  font-family: Arial, Helvetica, sans-serif;
-  background:#0f172a;
-  color:white;
-  display:flex;
-  justify-content:center;
-  align-items:center;
-  height:100vh;
-  text-align:center;
-}
+  body{
+    margin:0;
+    font-family: Arial, Helvetica, sans-serif;
+    background:#f4f6f9;
+  }
 
-.card{
-  background:#1e293b;
-  padding:40px;
-  border-radius:20px;
-  max-width:400px;
-}
+  .app-header{
+    background:#0f172a;
+    color:white;
+    padding:18px;
+    text-align:center;
+    font-size:22px;
+    font-weight:bold;
+  }
 
-.loader{
-  font-size:20px;
-  margin-top:15px;
-}
+  .container{
+    padding:20px;
+    max-width:1100px;
+    margin:auto;
+  }
+
+  .card{
+    background:white;
+    border-radius:16px;
+    box-shadow:0 10px 30px rgba(0,0,0,0.1);
+    overflow:hidden;
+  }
+
+  .card-top{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    padding:15px 20px;
+    border-bottom:1px solid #eee;
+    gap:10px;
+  }
+
+  .status{
+    font-size:14px;
+    color:#64748b;
+  }
+
+  .btn{
+    background:#2563eb;
+    color:white;
+    border:none;
+    padding:10px 16px;
+    border-radius:8px;
+    font-size:15px;
+    cursor:pointer;
+  }
+
+  iframe{
+    width:120%;
+    height:80vh;
+    border:none;
+  }
 </style>
 </head>
 
 <body>
 
-<div class="card">
-  <h2>📍 Verificando ubicación</h2>
-  <div class="loader">Espera un momento…</div>
+<div class="app-header">
+🚐 FILA VIRTUAL PARADERO
+</div>
+
+<div class="container">
+  <div class="card">
+    
+    <div class="card-top">
+      <div class="status" id="lastUpdate">Sistema en vivo</div>
+
+      <div>
+        <button class="btn" onclick="checkLocation()">➕ Registrarse</button>
+        <button class="btn" onclick="refreshSheet()">🔄 Actualizar</button>
+      </div>
+    </div>
+
+    <iframe 
+      id="sheetFrame"
+      src="https://docs.google.com/spreadsheets/d/1FCxMtsbSKJspLSWanjk_7VT7VA9v7u1hh68U0TdHJ7k/edit?rm=minimal">
+    </iframe>
+
+  </div>
 </div>
 
 <script>
+function refreshSheet() {
+  const iframe = document.getElementById("sheetFrame");
+  iframe.src = iframe.src + "&t=" + new Date().getTime();
+
+  const ahora = new Date().toLocaleTimeString();
+  document.getElementById("lastUpdate").innerText = "Actualizado: " + ahora;
+}
+</script>
+
+<script>
+// 📍 COORDENADAS PARADERO
 const PARADERO_LAT = -33.73228331583348;
 const PARADERO_LON = -70.73539815703865;
 const RADIO_METROS = 200;
 
-function toRad(v){ return v*Math.PI/180; }
+// 🔗 LINK GOOGLE FORMS
+const FORM_URL = "https://docs.google.com/forms/d/e/1FAIpQLScqQdDzJeOOmrT069IlGXWBRbXrqXS5D8ow9VSRCjLL30T6dQ/viewform";
 
+// Conversión radianes
+function toRad(valor){
+  return valor * Math.PI / 180;
+}
+
+// Distancia entre coordenadas (Haversine)
 function distanciaMetros(lat1, lon1, lat2, lon2){
   const R = 6371e3;
   const dLat = toRad(lat2-lat1);
   const dLon = toRad(lon2-lon1);
 
-  const a = Math.sin(dLat/2)**2 +
-  Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*
-  Math.sin(dLon/2)**2;
+  const a =
+    Math.sin(dLat/2) * Math.sin(dLat/2) +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+    Math.sin(dLon/2) * Math.sin(dLon/2);
 
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  return R * c;
 }
 
-navigator.geolocation.getCurrentPosition(function(pos){
-
-  const lat = pos.coords.latitude;
-  const lon = pos.coords.longitude;
-  const distancia = distanciaMetros(lat, lon, PARADERO_LAT, PARADERO_LON);
-
-  if(distancia <= RADIO_METROS){
-    window.location.href =
-    "https://docs.google.com/forms/d/e/1FAIpQLScqQdDzJeOOmrT069IlGXWBRbXrqXS5D8ow9VSRCjLL30T6dQ/viewform?usp=header";
-  }else{
-    document.body.innerHTML =
-    "<div class='card'><h2>❌ No estás en el paradero</h2><p>Debes estar dentro del área para registrarte.</p></div>";
+// BOTÓN REGISTRARSE (ÚNICO LUGAR DONDE SE USA GPS)
+function checkLocation(){
+  if (!navigator.geolocation){
+    alert("Tu celular no permite ubicación");
+    return;
   }
 
-}, function(){
-  alert("Debes permitir la ubicación para registrarte.");
-});
+  alert("Verificando ubicación...");
+
+  navigator.geolocation.getCurrentPosition(
+    function(position){
+
+      const lat = position.coords.latitude;
+      const lon = position.coords.longitude;
+
+      const distancia = distanciaMetros(lat, lon, PARADERO_LAT, PARADERO_LON);
+
+      if(distancia <= RADIO_METROS){
+        window.open(FORM_URL, "_blank");
+      } else {
+        alert("❌ No estás en el paradero.\nDebes estar dentro del área para registrarte.");
+      }
+    },
+    function(){
+      alert("Debes permitir la ubicación para registrarte.");
+    }
+  );
+}
 </script>
 
 </body>
