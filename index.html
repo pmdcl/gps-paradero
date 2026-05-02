@@ -2,171 +2,171 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-
 <title>Fila Virtual Paradero</title>
 
-<link rel="manifest" href="manifest.json">
-
-<script>
-if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("service-worker.js");
-}
-</script>
-
 <style>
-  body{
-    margin:0;
-    font-family: Arial, Helvetica, sans-serif;
-    background:#f4f6f9;
-  }
+body{
+  margin:0;
+  font-family: Arial, Helvetica, sans-serif;
+  background:#f1f5f9;
+}
 
-  .app-header{
-    background:#0f172a;
-    color:white;
-    padding:18px;
-    text-align:center;
-    font-size:22px;
-    font-weight:bold;
-  }
+.app-header{
+  background:#0f172a;
+  color:white;
+  padding:18px;
+  text-align:center;
+  font-size:22px;
+  font-weight:bold;
+}
 
-  .container{
-    padding:20px;
-    max-width:1100px;
-    margin:auto;
-  }
+.container{
+  padding:20px;
+  max-width:1000px;
+  margin:auto;
+}
 
-  .card{
-    background:white;
-    border-radius:16px;
-    box-shadow:0 10px 30px rgba(0,0,0,0.1);
-    overflow:hidden;
-  }
+.top-buttons{
+  display:flex;
+  gap:10px;
+  justify-content:center;
+  margin-bottom:20px;
+}
 
-  .card-top{
-    display:flex;
-    justify-content:space-between;
-    align-items:center;
-    padding:15px 20px;
-    border-bottom:1px solid #eee;
-    gap:10px;
-  }
+.btn{
+  background:#2563eb;
+  color:white;
+  border:none;
+  padding:12px 20px;
+  border-radius:10px;
+  font-size:16px;
+  cursor:pointer;
+}
 
-  .status{
-    font-size:14px;
-    color:#64748b;
-  }
+.grid{
+  display:grid;
+  grid-template-columns:1fr;
+  gap:20px;
+}
 
-  .btn{
-    background:#2563eb;
-    color:white;
-    border:none;
-    padding:10px 16px;
-    border-radius:8px;
-    font-size:15px;
-    cursor:pointer;
-  }
+.card{
+  background:white;
+  border-radius:18px;
+  padding:20px;
+  box-shadow:0 10px 30px rgba(0,0,0,0.1);
+}
 
-  iframe{
-    width:120%;
-    height:80vh;
-    border:none;
-  }
+.turno{ border-left:8px solid #22c55e; }
+.espera{ border-left:8px solid #facc15; }
+.salida{ border-left:8px solid #64748b; }
+
+.movil{
+  font-size:22px;
+  padding:5px 0;
+}
+
+.small{
+  color:#64748b;
+  font-size:14px;
+}
 </style>
 </head>
 
 <body>
 
-<div class="app-header">
-🚐 FILA VIRTUAL PARADERO
-</div>
+<div class="app-header">🚐 FILA VIRTUAL PARADERO</div>
 
 <div class="container">
-  <div class="card">
-    
-    <div class="card-top">
-      <div class="status" id="lastUpdate">Sistema en vivo</div>
 
-      <div>
-        <button class="btn" onclick="checkLocation()">➕ Registrarse</button>
-        <button class="btn" onclick="refreshSheet()">🔄 Actualizar</button>
-      </div>
+  <div class="top-buttons">
+    <button class="btn" onclick="checkLocation()">➕ Registrarse</button>
+    <button class="btn" onclick="cargarDatos()">🔄 Actualizar</button>
+  </div>
+
+  <div class="grid">
+
+    <div class="card turno">
+      <h2>🟢 EN TURNO</h2>
+      <div id="turno">Cargando...</div>
     </div>
 
-    <iframe 
-      id="sheetFrame"
-      src="https://docs.google.com/spreadsheets/d/1FCxMtsbSKJspLSWanjk_7VT7VA9v7u1hh68U0TdHJ7k/edit?rm=minimal">
-    </iframe>
+    <div class="card espera">
+      <h2>🟡 EN ESPERA</h2>
+      <div id="espera">Cargando...</div>
+    </div>
+
+    <div class="card salida">
+      <h2>⚫ ÚLTIMA SALIDA</h2>
+      <div id="salida">Cargando...</div>
+    </div>
 
   </div>
 </div>
 
 <script>
-function refreshSheet() {
-  const iframe = document.getElementById("sheetFrame");
-  iframe.src = iframe.src + "&t=" + new Date().getTime();
+// 🔗 LINK CSV
+const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSXJbNz31wMpneH5Xohkd8YTyeA57HhYkAOa05PgLOcUkWK3JwHyss9EJR1vYk4z4YftRl_J_zdVU8R/pub?gid=1499579513&single=true&output=csv";
 
-  const ahora = new Date().toLocaleTimeString();
-  document.getElementById("lastUpdate").innerText = "Actualizado: " + ahora;
+// 📥 Leer datos del Sheet
+async function cargarDatos(){
+  const response = await fetch(CSV_URL + "&t=" + new Date().getTime());
+  const data = await response.text();
+
+  const filas = data.split("\n").slice(1);
+  let cola = [];
+  let ultimaSalida = "-";
+
+  filas.forEach(f => {
+    const c = f.split(",");
+    if(c.length < 3) return;
+
+    const hora = c[0];
+    const movil = c[1];
+    const tipo = c[2].trim();
+
+    if(tipo === "Ingreso") cola.push(movil);
+    if(tipo === "Salida"){
+      ultimaSalida = movil + " — " + hora;
+      cola.shift();
+    }
+  });
+
+  document.getElementById("turno").innerHTML =
+    cola[0] ? `<div class="movil">Movil ${cola[0]}</div>` : "Sin vehículos";
+
+  document.getElementById("espera").innerHTML =
+    cola.slice(1).map(m => `<div class="movil">Movil ${m}</div>`).join("") || "Vacío";
+
+  document.getElementById("salida").innerHTML = ultimaSalida;
 }
-</script>
 
-<script>
-// 📍 COORDENADAS PARADERO
+cargarDatos();
+setInterval(cargarDatos,30000);
+
+// 📍 GPS SOLO PARA REGISTRO
 const PARADERO_LAT = -33.83321726390133;
 const PARADERO_LON = -70.64226159521483;
 const RADIO_METROS = 200;
 
-// 🔗 LINK GOOGLE FORMS
-const FORM_URL = "https://docs.google.com/forms/d/e/1FAIpQLScqQdDzJeOOmrT069IlGXWBRbXrqXS5D8ow9VSRCjLL30T6dQ/viewform";
+function toRad(v){ return v*Math.PI/180; }
 
-// Conversión radianes
-function toRad(valor){
-  return valor * Math.PI / 180;
+function distanciaMetros(lat1,lon1,lat2,lon2){
+  const R=6371e3;
+  const dLat=toRad(lat2-lat1);
+  const dLon=toRad(lon2-lon1);
+  const a=Math.sin(dLat/2)**2+
+    Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)**2;
+  return R*(2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a)));
 }
 
-// Distancia entre coordenadas (Haversine)
-function distanciaMetros(lat1, lon1, lat2, lon2){
-  const R = 6371e3;
-  const dLat = toRad(lat2-lat1);
-  const dLon = toRad(lon2-lon1);
-
-  const a =
-    Math.sin(dLat/2) * Math.sin(dLat/2) +
-    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
-    Math.sin(dLon/2) * Math.sin(dLon/2);
-
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-  return R * c;
-}
-
-// BOTÓN REGISTRARSE (ÚNICO LUGAR DONDE SE USA GPS)
 function checkLocation(){
-  if (!navigator.geolocation){
-    alert("Tu celular no permite ubicación");
-    return;
-  }
-
-  alert("Verificando ubicación...");
-
-  navigator.geolocation.getCurrentPosition(
-    function(position){
-
-      const lat = position.coords.latitude;
-      const lon = position.coords.longitude;
-
-      const distancia = distanciaMetros(lat, lon, PARADERO_LAT, PARADERO_LON);
-
-      if(distancia <= RADIO_METROS){
-        window.open(FORM_URL, "_blank");
-      } else {
-        alert("❌ No estás en el paradero.\nDebes estar dentro del área para registrarte.");
-      }
-    },
-    function(){
-      alert("Debes permitir la ubicación para registrarte.");
-    }
-  );
+  navigator.geolocation.getCurrentPosition(pos=>{
+    const d=distanciaMetros(pos.coords.latitude,pos.coords.longitude,PARADERO_LAT,PARADERO_LON);
+    if(d<=RADIO_METROS)
+      window.open("https://docs.google.com/forms/d/e/1FAIpQLScqQdDzJeOOmrT069IlGXWBRbXrqXS5D8ow9VSRCjLL30T6dQ/viewform","_blank");
+    else
+      alert("❌ Debes estar en el paradero para registrarte");
+  },()=>alert("Debes permitir la ubicación"));
 }
 </script>
 
