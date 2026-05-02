@@ -148,7 +148,56 @@ cargarDatos();
 // actualización automática cada 10 segundos
 setInterval(cargarDatos,10000);
 
-</script>
+<script>
 
+const API = "https://script.google.com/macros/s/AKfycbyId0B1FrasnydfD3Ru8b4oQxieZJ05NuXImIFuL-UqFxqyLUImP1avdPqlRqMVHQRx/exec";
+
+async function cargarDatos(){
+
+  try{
+    const res = await fetch(API + "?t=" + new Date().getTime(), {
+      cache: "no-store"
+    });
+
+    const data = await res.json();
+
+    console.log("DATOS API:", data); // 👈 verificación
+
+    // 🔥 TURNO
+    document.getElementById("turno").innerHTML = data.turno.length
+      ? data.turno.map(t =>
+          `<div class="item">Móvil ${t.movil}</div>`
+        ).join("")
+      : "Sin vehículos";
+
+    // 🔥 ESPERA
+    document.getElementById("espera").innerHTML = data.espera.length
+      ? data.espera.map((e,i) =>
+          `<div class="item">
+            <span class="pos">N° ${i+3}</span>
+            <span class="movil">Móvil ${e.movil}</span>
+          </div>`
+        ).join("")
+      : "Sin espera";
+
+    // 🔥 SALIDA
+    document.getElementById("salida").innerHTML = data.salida.length
+      ? data.salida.map(s =>
+          `<div class="item">Móvil ${s.movil}</div>`
+        ).join("")
+      : "Sin registros";
+
+  }catch(err){
+    console.error("ERROR:", err);
+  }
+}
+
+// 👇 MUY IMPORTANTE
+window.onload = cargarDatos;
+
+// actualización automática
+setInterval(cargarDatos,10000);
+
+</script>
 </body>
 </html>
