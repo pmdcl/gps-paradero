@@ -6,35 +6,74 @@
 <title>Fila Virtual Paradero</title>
 
 <style>
-body{margin:0;font-family:Arial;background:#0f172a;color:white;}
-.header{background:#020617;padding:15px;text-align:center;font-size:22px;}
-.container{padding:15px;max-width:900px;margin:auto;}
-
-.card{border-radius:16px;padding:15px;margin-bottom:15px;}
-.turno{background:#065f46;}
-.espera{background:#78350f;}
-.salida{background:#7f1d1d;}
-
-.titulo{font-size:18px;margin-bottom:10px;font-weight:bold;}
-
-.item{padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.1);font-size:18px;}
-
-.pos{font-weight:bold;margin-right:10px;}
-.movil{font-weight:bold;}
-
-.btn{
-width:100%;
-padding:12px;
-font-size:18px;
-border:none;
-border-radius:10px;
-margin-top:10px;
-cursor:pointer;
-background:#2563eb;
-color:white;
+body{
+  margin:0;
+  font-family: Arial, Helvetica, sans-serif;
+  background:#0f172a;
+  color:white;
 }
 
-.btn-green{background:#16a34a;}
+.header{
+  background:#020617;
+  padding:15px;
+  text-align:center;
+  font-size:22px;
+  font-weight:bold;
+}
+
+.container{
+  padding:15px;
+  max-width:900px;
+  margin:auto;
+}
+
+.card{
+  border-radius:16px;
+  padding:15px;
+  margin-bottom:15px;
+}
+
+.turno{ background:#065f46; }
+.espera{ background:#78350f; }
+.salida{ background:#7f1d1d; }
+.info{ background:#1e293b; }
+
+.titulo{
+  font-size:18px;
+  margin-bottom:10px;
+  font-weight:bold;
+}
+
+.item{
+  padding:8px 0;
+  border-bottom:1px solid rgba(255,255,255,0.1);
+  font-size:18px;
+}
+
+.pos{
+  font-weight:bold;
+  margin-right:10px;
+}
+
+.movil{
+  font-weight:bold;
+}
+
+.btn{
+  width:100%;
+  padding:12px;
+  font-size:18px;
+  border:none;
+  border-radius:10px;
+  margin-top:10px;
+  cursor:pointer;
+  background:#2563eb;
+  color:white;
+}
+
+.btn-green{ background:#16a34a; }
+.btn-map{ background:#f59e0b; }
+
 </style>
 </head>
 
@@ -44,23 +83,47 @@ color:white;
 
 <div class="container">
 
-<div class="card turno">
-<div class="titulo">🟢 SU TURNO</div>
-<div id="turno">Cargando...</div>
-</div>
+  <!-- 📍 UBICACIÓN -->
+  <div class="card info">
+    <div class="titulo">📍 PARADERO OFICIAL</div>
+    <button class="btn btn-map" onclick="abrirMapa()">📍 Ver ubicación en Google Maps</button>
+    <p style="margin-top:10px;">
+      Debes estar a menos de <b>200 metros</b> de este punto para registrarte.
+    </p>
+  </div>
 
-<div class="card espera">
-<div class="titulo">🟡 EN ESPERA</div>
-<div id="espera">Cargando...</div>
-</div>
+  <!-- ⚠️ REGLAS -->
+  <div class="card info">
+    <div class="titulo">⚠️ IMPORTANTE</div>
+    <p>
+      • Regístrate solo una vez<br>
+      • Si vuelves a ingresar, pasarás al final de la fila<br>
+      • Debes estar en el paradero para registrarte
+    </p>
+  </div>
 
-<div class="card salida">
-<div class="titulo">🔴 ÚLTIMA SALIDA</div>
-<div id="salida">Cargando...</div>
-</div>
+  <!-- ➕ BOTÓN REGISTRO -->
+  <button class="btn btn-green" onclick="checkLocation()">➕ REGISTRARSE EN LA FILA</button>
 
-<button class="btn btn-green" onclick="checkLocation()">➕ Registrarse</button>
-<button class="btn" onclick="cargarDatos()">Actualizar</button>
+  <!-- 🟢 TURNO -->
+  <div class="card turno">
+    <div class="titulo">🟢 SU TURNO</div>
+    <div id="turno">Cargando...</div>
+  </div>
+
+  <!-- 🟡 ESPERA -->
+  <div class="card espera">
+    <div class="titulo">🟡 EN ESPERA</div>
+    <div id="espera">Cargando...</div>
+  </div>
+
+  <!-- 🔴 SALIDA -->
+  <div class="card salida">
+    <div class="titulo">🔴 ÚLTIMA SALIDA</div>
+    <div id="salida">Cargando...</div>
+  </div>
+
+  <button class="btn" onclick="cargarDatos()">🔄 ACTUALIZAR</button>
 
 </div>
 
@@ -69,15 +132,18 @@ color:white;
 // 🔗 API
 const API = "https://script.google.com/macros/s/AKfycbyId0B1FrasnydfD3Ru8b4oQxieZJ05NuXImIFuL-UqFxqyLUImP1avdPqlRqMVHQRx/exec";
 
-// 📍 FORM
+// 🔗 FORM
 const FORM = "https://docs.google.com/forms/d/e/1FAIpQLScqQdDzJeOOmrT069IlGXWBRbXrqXS5D8ow9VSRCjLL30T6dQ/viewform";
 
-// 📍 GEO CONFIG
-const PARADERO_LAT = -33.732260;
-const PARADERO_LON = -70.735436;
-const RADIO = 200; // metros
+// 📍 MAPA
+const MAP_URL = "https://www.google.com/maps?q=-33.833253,-70.642302";
 
-// 📥 CARGAR DATOS
+// 📍 GEO CONFIG
+const LAT = -33.833253;
+const LON = -70.642302;
+const RADIO = 200;
+
+// 📥 DATOS
 async function cargarDatos(){
   const res = await fetch(API + "?t=" + new Date().getTime(), {cache:"no-store"});
   const data = await res.json();
@@ -105,11 +171,15 @@ async function cargarDatos(){
       : "Sin registros";
 }
 
+// 📍 MAPA
+function abrirMapa(){
+  window.open(MAP_URL, "_blank");
+}
+
 // 📏 DISTANCIA
 function distancia(lat1, lon1, lat2, lon2){
   const R = 6371e3;
   const toRad = x => x*Math.PI/180;
-
   const dLat = toRad(lat2-lat1);
   const dLon = toRad(lon2-lon1);
 
@@ -120,7 +190,7 @@ function distancia(lat1, lon1, lat2, lon2){
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
 }
 
-// 📍 VALIDAR UBICACIÓN
+// 📍 REGISTRO CON GPS
 function checkLocation(){
 
   if(!navigator.geolocation){
@@ -130,21 +200,20 @@ function checkLocation(){
 
   navigator.geolocation.getCurrentPosition(pos => {
 
-    const lat = pos.coords.latitude;
-    const lon = pos.coords.longitude;
-
-    const d = distancia(lat, lon, PARADERO_LAT, PARADERO_LON);
+    const d = distancia(
+      pos.coords.latitude,
+      pos.coords.longitude,
+      LAT,
+      LON
+    );
 
     if(d <= RADIO){
       window.open(FORM, "_blank");
-    }else{
-      alert("❌ Debes estar en el paradero para registrarte");
+    } else {
+      alert("❌ Debes estar dentro de 200 metros del paradero");
     }
 
-  }, () => {
-    alert("Debes permitir la ubicación");
-  });
-
+  }, () => alert("Debes permitir ubicación"));
 }
 
 // AUTO
